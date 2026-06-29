@@ -1,5 +1,4 @@
-# Pipeline 2: Using KUBERNETES (VM Pool with Delegate)
-# Use this when: You have a Delegate installed with VM pool
+# Using Local Docker infrastructure
 pipeline:
   name: yaswanth
   identifier: yaswanth
@@ -16,16 +15,9 @@ pipeline:
           cloneCodebase: true
           caching:
             enabled: true
-            override: true
-          buildIntelligence:
-            enabled: true
           infrastructure:
-            type: VM
-            spec:
-              type: Pool
-              spec:
-                poolName: yaswanth
-                os: Linux
+            type: LocalDocker
+            spec: {}
           execution:
             steps:
               - step:
@@ -34,14 +26,11 @@ pipeline:
                   identifier: Run_1
                   spec:
                     shell: Sh
+                    image: maven:3.9-eclipse-temurin-17
                     command: |
-                      echo "=== Building Hello World ==="
-                      mvn clean package -q
-                      echo ""
-                      echo "=== Running the App ==="
-                      java -jar target/hello-world-1.0.0.jar
-                      echo ""
-                      echo "=== Pipeline Success! ==="
+                      echo "=== Hello from Harness CI/CD! ==="
+                      echo "Pipeline is running on Local Docker"
+                      echo "=== Success! ==="
   properties:
     ci:
       codebase:
