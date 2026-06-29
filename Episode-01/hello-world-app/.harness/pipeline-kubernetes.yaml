@@ -1,9 +1,18 @@
+# Pipeline 2: Using KUBERNETES (Delegate Required)
+# Use this when: You have a K8s cluster with Harness Delegate installed
 pipeline:
-  name: Hello World Pipeline
-  identifier: hello_world_pipeline
-  projectIdentifier: harness_course
-  orgIdentifier: learning
-  tags: {}
+  name: HelloWorld-Kubernetes
+  identifier: helloworld_kubernetes
+  projectIdentifier: default_project
+  orgIdentifier: default
+  tags:
+    infra: kubernetes
+  properties:
+    ci:
+      codebase:
+        connectorRef: github_connector
+        repoName: hello-world-harness
+        build: <+input>
   stages:
     - stage:
         name: Build Hello World
@@ -16,6 +25,7 @@ pipeline:
             spec:
               connectorRef: k8s_connector
               namespace: harness-builds
+              automountServiceAccountToken: true
           execution:
             steps:
               - step:
@@ -27,7 +37,10 @@ pipeline:
                     image: maven:3.9-eclipse-temurin-17
                     shell: Sh
                     command: |
-                      echo "=== Building Hello World App ==="
+                      echo "=== Building Hello World (Kubernetes) ==="
+                      echo "Infrastructure: Kubernetes Delegate"
+                      echo "Image: maven:3.9-eclipse-temurin-17"
+                      echo ""
                       mvn clean package -q
                       echo ""
                       echo "=== Running the App ==="
