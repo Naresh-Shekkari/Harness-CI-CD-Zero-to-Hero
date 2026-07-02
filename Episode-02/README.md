@@ -325,7 +325,7 @@ Connectors = How Harness connects to external tools
 2. Go to **Account Settings** (gear icon top-right)
 3. Click **Organizations** → **+ New Organization**
 4. Fill in:
-   - Name: `learning`
+   - Name: `Harness`
    - Description: `My learning organization`
 5. Click **Save**
 

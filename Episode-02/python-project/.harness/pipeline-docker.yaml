@@ -1,0 +1,93 @@
+# ============================================
+# PIPELINE: Python App — Local Docker Runner (Delegate Required)
+# ============================================
+# Prerequisites:
+# 1. Docker Desktop running on your machine
+# 2. Harness Docker Delegate installed (docker-compose from Harness UI)
+# 3. Harness Docker Runner installed on same machine
+#
+# How to install:
+#   Project Settings > Delegates > + New Delegate > Docker
+#   Copy the docker-compose command > Run it
+#   Wait 2 min > Delegate shows "Connected"
+#
+# CHANGE THESE VALUES:
+# - projectIdentifier: Your project ID (find in URL after /projects/)
+# - orgIdentifier: Your org name (usually "default")
+# - connectorRef: Your GitHub connector name (with "account." if account-level)
+# - repoName: Your GitHub repository name
+# ============================================
+pipeline:
+  name: python-docker-pipeline
+  identifier: python_docker_pipeline
+  # CHANGE THIS: Your project ID
+  projectIdentifier: HarnessCICDZerotoHero
+  # CHANGE THIS: Your org name
+  orgIdentifier: Harness
+  tags: {}
+  properties:
+    ci:
+      codebase:
+        # CHANGE THIS: Your GitHub connector
+        connectorRef: account.Github
+        # CHANGE THIS: Your repo name
+        repoName: Harness-CI-CD-Zero-to-Hero
+        build: <+input>
+  stages:
+    - stage:
+        name: build-python
+        identifier: build_python
+        description: "Build and test Python Flask app using Local Docker"
+        type: CI
+        spec:
+          cloneCodebase: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              # Step 1: Install dependencies
+              - step:
+                  type: Run
+                  name: Install Dependencies
+                  identifier: install_deps
+                  spec:
+                    shell: Sh
+                    image: python:3.11-slim
+                    command: |-
+                      echo "=== Installing Dependencies ==="
+                      cd Episode-02/python-project
+                      pip install -r requirements.txt
+                      echo "=== Done! ==="
+
+              # Step 2: Run tests
+              - step:
+                  type: Run
+                  name: Run Tests
+                  identifier: run_tests
+                  spec:
+                    shell: Sh
+                    image: python:3.11-slim
+                    command: |-
+                      echo "=== Running Unit Tests ==="
+                      cd Episode-02/python-project
+                      pip install -r requirements.txt
+                      pytest test_app.py -v
+                      echo "=== All Tests Passed! ==="
+
+              # Step 3: Run the app (quick check)
+              - step:
+                  type: Run
+                  name: Run App
+                  identifier: run_app
+                  spec:
+                    shell: Sh
+                    image: python:3.11-slim
+                    command: |-
+                      echo "=== Starting Python App ==="
+                      cd Episode-02/python-project
+                      pip install -r requirements.txt
+                      python -c "from app import app; client = app.test_client(); r = client.get('/'); print(r.get_json()); r = client.get('/health'); print(r.get_json()); print('=== App Works! Pipeline Success! ===')"
