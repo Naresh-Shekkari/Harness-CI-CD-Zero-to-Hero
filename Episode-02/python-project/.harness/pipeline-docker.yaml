@@ -53,9 +53,6 @@ pipeline:
         type: CI
         spec:
           cloneCodebase: true
-          platform:
-            os: Linux
-            arch: Amd64
           runtime:
             # This uses Local Docker Runner (needs Delegate)
             type: Docker
