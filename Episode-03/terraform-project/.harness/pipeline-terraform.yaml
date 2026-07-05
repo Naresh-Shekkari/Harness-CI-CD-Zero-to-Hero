@@ -1,22 +1,19 @@
 # ============================================
-# PIPELINE: Terraform on Harness Cloud
+# PIPELINE: Terraform on Harness Cloud (OIDC - No Access Keys!)
 # Creates VPC + EC2 or Destroys everything
 # ============================================
-# NO Delegate needed! Uses Harness Cloud.
+# Uses AWS Connector with OIDC (no secrets needed for AWS auth!)
 #
 # PREREQUISITES:
 #   1. S3 bucket created manually (for Terraform state)
-#   2. Secrets in Harness:
-#      - aws-access-key (AWS Access Key ID)
-#      - aws-secret-key (AWS Secret Access Key)
-#   3. Variables in Harness:
-#      - s3_bucket_name (your state bucket name)
-#      - aws_region (us-east-1)
+#   2. AWS Connector with OIDC created (aws-connector)
+#   3. Variable: s3_bucket_name (your state bucket)
+#   4. Variable: aws_region (us-east-1)
+#
+# NO aws-access-key or aws-secret-key needed! OIDC handles it.
 #
 # HOW TO USE:
 #   Run pipeline → Choose action: "apply" or "destroy"
-#   apply = creates VPC + EC2
-#   destroy = deletes everything, bill = $0
 #
 # CHANGE THESE:
 #   - projectIdentifier
@@ -48,7 +45,7 @@ pipeline:
     - stage:
         name: terraform
         identifier: terraform
-        description: "Apply or Destroy AWS infrastructure"
+        description: "Apply or Destroy AWS infrastructure using OIDC"
         type: CI
         spec:
           cloneCodebase: true
@@ -60,19 +57,16 @@ pipeline:
             spec: {}
           execution:
             steps:
-              # Step 1: Terraform Init
+              # Step 1: Get AWS credentials via OIDC connector
               - step:
                   type: Run
                   name: Terraform Init
                   identifier: tf_init
                   spec:
                     shell: Sh
-                    envVariables:
-                      AWS_ACCESS_KEY_ID: <+secrets.getValue("aws-access-key")>
-                      AWS_SECRET_ACCESS_KEY: <+secrets.getValue("aws-secret-key")>
-                      AWS_DEFAULT_REGION: <+variable.aws_region>
+                    connectorRef: account.aws_connector
                     command: |-
-                      echo "=== Terraform Init ==="
+                      echo "=== Terraform Init (OIDC Auth) ==="
                       cd Episode-03/terraform-project
                       terraform init \
                         -backend-config="bucket=<+variable.s3_bucket_name>" \
@@ -87,10 +81,7 @@ pipeline:
                   identifier: tf_plan
                   spec:
                     shell: Sh
-                    envVariables:
-                      AWS_ACCESS_KEY_ID: <+secrets.getValue("aws-access-key")>
-                      AWS_SECRET_ACCESS_KEY: <+secrets.getValue("aws-secret-key")>
-                      AWS_DEFAULT_REGION: <+variable.aws_region>
+                    connectorRef: account.aws_connector
                     command: |-
                       echo "=== Terraform Plan (action: <+pipeline.variables.tf_action>) ==="
                       cd Episode-03/terraform-project
@@ -108,10 +99,7 @@ pipeline:
                   identifier: tf_execute
                   spec:
                     shell: Sh
-                    envVariables:
-                      AWS_ACCESS_KEY_ID: <+secrets.getValue("aws-access-key")>
-                      AWS_SECRET_ACCESS_KEY: <+secrets.getValue("aws-secret-key")>
-                      AWS_DEFAULT_REGION: <+variable.aws_region>
+                    connectorRef: account.aws_connector
                     command: |-
                       echo "=== Terraform <+pipeline.variables.tf_action> ==="
                       cd Episode-03/terraform-project

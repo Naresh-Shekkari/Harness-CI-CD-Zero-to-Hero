@@ -360,28 +360,57 @@ Account Settings → Connectors → click `dockerhub` → Test → ✅
 
 ---
 
-### Connector 3: AWS — 🆕 CREATE NOW
+### Connector 3: AWS — 🆕 CREATE NOW (Using OIDC — No Access Keys!)
 
-**You need this for Episode 7+ (EKS, ECS, ECR). Optional for now but good to set up.**
+**Why OIDC?** Access keys can be hacked if leaked. OIDC = Harness proves its identity to AWS directly. No keys stored anywhere!
 
-1. **Account Settings** → **Connectors** → **+ New Connector**
-2. Choose **AWS**
+**Step A: Create OIDC Provider in AWS**
+
+1. Go to AWS Console → **IAM** → **Identity providers**
+2. Click **Add provider**
 3. Fill in:
-   - Name: `aws-connector`
-   - Credential Type: **AWS Access Key**
-4. Authentication:
-   - Access Key ID: Click **+ New Secret** → name: `aws-access-key` → paste your AWS Access Key
-   - Secret Access Key: Click **+ New Secret** → name: `aws-secret-key` → paste your AWS Secret Key
-5. Connectivity: **Connect through Harness Platform**
-6. Click **Save and Continue** → **Test Connection** → ✅
+   - Provider type: **OpenID Connect**
+   - Provider URL: `https://app.harness.io/ng/api/oidc/account/YOUR_HARNESS_ACCOUNT_ID`
+   - Click "Get thumbprint"
+   - Audience: `sts.amazonaws.com`
+4. Click **Add provider**
 
-**How to get AWS Access Keys:**
+**How to find your Harness Account ID:**
 ```
-1. Go to AWS Console → IAM → Users → Your user
-2. Security credentials tab → Create access key
-3. Choose: "Command Line Interface (CLI)"
-4. Copy Access Key ID + Secret Access Key
+Harness → Account Settings → Overview → Account ID
+OR look in URL: app.harness.io/ng/account/XXXXXXXX/...
 ```
+
+**Step B: Create IAM Role for Harness OIDC**
+
+1. Go to **IAM** → **Roles** → **Create role**
+2. Trusted entity: **Web identity**
+3. Identity provider: select the one you just created (`app.harness.io/ng/api/oidc/account/...`)
+4. Audience: `sts.amazonaws.com`
+5. Click Next
+6. Permissions: Select **AdministratorAccess**
+7. Click Next
+8. Role name: `harness-oidc-role`
+9. Click **Create role**
+10. Copy the Role ARN: `arn:aws:iam::YOUR_ACCOUNT_ID:role/harness-oidc-role`
+
+**Step C: Create AWS Connector in Harness**
+
+1. Go to **Account Settings** → **Connectors** → **+ New Connector**
+2. Choose **AWS - Cloud Provider**
+3. Screen 1 (Overview):
+   - Name: `aws-connector`
+4. Screen 2 (Credentials):
+   - Select: **Use OIDC**
+   - IAM Role: `arn:aws:iam::YOUR_ACCOUNT_ID:role/harness-oidc-role`
+   - Test Region: `us-east-1`
+5. Screen 3 (Backoff Strategy):
+   - Keep defaults (Fixed Delay)
+   - Click Continue
+6. Screen 4 (Connectivity):
+   - Select: **Connect through Harness Platform**
+7. Screen 5 (Connection Test):
+   - Click Test → ✅ Success
 
 ---
 
