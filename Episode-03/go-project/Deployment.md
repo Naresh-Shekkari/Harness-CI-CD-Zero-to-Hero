@@ -172,22 +172,7 @@ docker run -d --cpus=0.1 --memory=100m \
 
 ---
 
-## Step 7: Create Rollback Directory on EC2
-
-```bash
-# Create the directory where rollback data is stored
-mkdir -p /tmp/harness
-
-# Check it exists
-ls /tmp/harness/
-
-# After first successful pipeline run, this file will appear:
-# /tmp/harness/last-successful-tag.txt
-```
-
----
-
-## Step 8: Verify Everything Running on EC2
+## Step 7: Verify Everything Running on EC2
 
 ```bash
 # Check Docker containers
