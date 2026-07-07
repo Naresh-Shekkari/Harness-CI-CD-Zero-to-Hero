@@ -33,6 +33,27 @@ Like building an assembly line in a factory.
 ### 2. Pipeline Structure
 
 ```
+Stage 1: build-cpp
+  ├── Install Dependencies
+  ├── Unit Tests
+  ├── Build Application
+  ├── Push to Docker Hub
+  └── Verify Docker Hub
+
+Stage 2: push-to-ecr
+  ├── Push to ECR
+  ├── Verify ECR Image (AWS CLI)
+  └── Final Summary
+
+Stage 3: cleanup-dockerhub
+  ├── Wait 2 minutes
+  └── Delete Docker Hub Repo + Verify
+
+Stage 4: cleanup-ecr
+  └── Delete ECR Images + Repo + Verify
+```
+
+```
 Pipeline
 ├── Stage 1: "Build & Test"
 │   ├── Step 1: Clone Repository
@@ -139,342 +160,139 @@ Template Types:
 
 ---
 
-## 🖥️ Demo: Build a Production-Ready CI Pipeline
+## 🖥️ Deploy This Pipeline — Step by Step
 
-### Our Sample Application
+---
 
-We'll use a Java Spring Boot application:
+### Prerequisites (Already Done in Previous Episodes)
+
+| What | Where to Find Steps |
+|------|-------------------|
+| GitHub Connector | [Episode 1 — DEPLOY-STEPS.md](../Episode-01/hello-world-app/DEPLOY-STEPS.md#step-3-create-a-github-connector-first-time-only) |
+| Docker Hub Secret + Variable | [Episode 2 — README.md (Step 3-4)](../Episode-02/README.md#step-3-add-a-secret) |
+| Docker Hub Connector | [Episode 2 — README.md (Step 5)](../Episode-02/README.md#step-5-create-docker-hub-connector) |
+| AWS Connector (OIDC) | [Episode 3 — README.md (Connector 3)](../Episode-03/README.md#connector-3-aws--🆕-create-now-using-oidc--no-access-keys) |
+| AWS Access Key Secrets | [Episode 3 — Terraform README (Step 2-3)](../Episode-03/terraform-project/README.md#step-2-get-aws-access-key--secret-key) |
+
+---
+
+### Step 1: Add Variable `aws_account_id` in Harness
+
+1. Go to Project Settings → Variables → + New Variable
+2. Name: `aws_account_id`
+3. Value: your 12-digit AWS account ID (e.g. `713939171080`)
+4. Save
+
+---
+
+### Step 2: Push Code to GitHub
+
+```bash
+cd Harness-CI-CD-Zero-to-Hero
+git add .
+git commit -m "Episode 4: C++ enterprise CI pipeline"
+git push origin master
+```
+
+---
+
+### Step 3: Import Pipeline in Harness
+
+1. Pipelines → Import from Git
+2. Connector: Github
+3. Repo: Harness-CI-CD-Zero-to-Hero
+4. Branch: master
+5. YAML Path: `Episode-04/cpp-project/.harness/pipeline.yaml`
+6. Click Import
+
+---
+
+### Step 4: Run the Pipeline
+
+1. Click Run
+2. Fill in runtime inputs:
+   - `deploy_version`: type `1.0.0`
+   - `environment`: select `development` (or any)
+   - Branch: `master`
+3. Click Run Pipeline
+
+---
+
+### Step 5: Watch 4 Stages Execute
 
 ```
-sample-app/
-├── src/
-│   ├── main/
-│   │   └── java/
-│   │       └── com/example/app/
-│   │           └── Application.java
-│   └── test/
-│       └── java/
-│           └── com/example/app/
-│               └── ApplicationTest.java
-├── pom.xml
-├── Dockerfile
+Stage 1: build-cpp
+  ├── Install Dependencies ✅
+  ├── Unit Tests ✅
+  ├── Build Application ✅
+  ├── Push to Docker Hub ✅
+  └── Verify Docker Hub ✅
+
+Stage 2: push-to-ecr
+  ├── Push to ECR ✅
+  ├── Verify ECR Image ✅
+  └── Final Summary ✅
+
+Stage 3 & 4 (Parallel):
+  ├── cleanup-dockerhub (wait 2 min → delete) ✅
+  └── cleanup-ecr (wait 2 min → delete) ✅
+```
+
+---
+
+### Expected Output (Final Summary)
+
+```
+=========================================
+  ENTERPRISE CI PIPELINE COMPLETE!
+
+  Version: 1.0.0
+  Environment: development
+
+  Stage 1: Build + Docker Hub ✅
+  Stage 2: Amazon ECR ✅
+
+  Docker Hub: yaswanth111/cpp-harness-app:1.0.0-development
+  ECR: 713939171080.dkr.ecr.us-east-1.amazonaws.com/cpp-harness-app:1.0.0-development
+
+  All Tags:
+    - 1.0.0-development
+    - 1
+    - latest
+=========================================
+```
+
+---
+
+### Connectors & Secrets Summary
+
+| Resource | Name | Type | Created In |
+|----------|------|------|-----------|
+| GitHub Connector | `Github` | Account level | Episode 1 |
+| Docker Hub Connector | `dockerhub` | Project level | Episode 2 |
+| AWS Connector (OIDC) | `aws_account` | Project level | Episode 3 |
+| Secret: Docker Hub token | `docker-hub-password` | Project | Episode 2 |
+| Secret: AWS Access Key | `aws_access_key_id` | Project | Episode 3 |
+| Secret: AWS Secret Key | `aws_secret_access_key` | Project | Episode 3 |
+| Variable: Docker username | `docker_username` | Project | Episode 2 |
+| Variable: AWS Account ID | `aws_account_id` | Project | Episode 4 |
+
+---
+
+### Project Structure
+
+```
+Episode-04/cpp-project/
+├── src/main.cpp                  ← C++ HTTP server
+├── tests/test_main.cpp           ← Unit tests
+├── CMakeLists.txt                ← Build system
+├── Dockerfile                    ← Multi-stage Docker build
+├── Templates.md                  ← Template documentation
+├── .gitignore
 └── .harness/
-    └── ci-pipeline.yaml
+    ├── pipeline.yaml             ← Main pipeline (4 stages)
+    └── template-pipeline.yaml    ← Reusable template (any language)
 ```
-
----
-
-### The Application Code
-
-**Application.java:**
-```java
-package com.example.app;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-@SpringBootApplication
-@RestController
-public class Application {
-
-    public static void main(String[] args) {
-        SpringApplication.run(Application.class, args);
-    }
-
-    @GetMapping("/")
-    public String home() {
-        return "Hello from Harness CI/CD Course!";
-    }
-
-    @GetMapping("/health")
-    public String health() {
-        return "OK";
-    }
-}
-```
-
----
-
-### The Dockerfile (Multi-Stage)
-
-```dockerfile
-# Stage 1: Build the application
-FROM maven:3.9-eclipse-temurin-17 AS builder
-WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests
-
-# Stage 2: Run the application (small image)
-FROM eclipse-temurin:17-jre-alpine
-WORKDIR /app
-COPY --from=builder /app/target/*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
-```
-
-**Why Multi-Stage?**
-```
-Single Stage:  Image size = 800MB  (includes Maven, JDK, source code)
-Multi-Stage:   Image size = 150MB  (only JRE + your app JAR)
-
-Smaller image = Faster deployment = Less money = More secure
-```
-
----
-
-### The CI Pipeline YAML
-
-```yaml
-# .harness/ci-pipeline.yaml
-pipeline:
-  name: Build and Push
-  identifier: build_and_push
-  projectIdentifier: harness_course
-  orgIdentifier: learning
-  tags: {}
-
-  properties:
-    ci:
-      codebase:
-        connectorRef: github_connector
-        repoName: harness-cicd-sample-app
-        build: <+input>
-
-  stages:
-    - stage:
-        name: Build and Test
-        identifier: build_and_test
-        type: CI
-        spec:
-          cloneCodebase: true
-          infrastructure:
-            type: KubernetesDirect
-            spec:
-              connectorRef: k8s_connector
-              namespace: harness-builds
-              automountServiceAccountToken: true
-          execution:
-            steps:
-              # Step 1: Run Unit Tests
-              - step:
-                  type: Run
-                  name: Run Unit Tests
-                  identifier: run_tests
-                  spec:
-                    connectorRef: dockerhub_connector
-                    image: maven:3.9-eclipse-temurin-17
-                    shell: Sh
-                    command: |
-                      echo "=== Running Unit Tests ==="
-                      mvn test
-                      echo "=== Tests Passed! ==="
-
-              # Step 2: Build Application
-              - step:
-                  type: Run
-                  name: Build Application
-                  identifier: build_app
-                  spec:
-                    connectorRef: dockerhub_connector
-                    image: maven:3.9-eclipse-temurin-17
-                    shell: Sh
-                    command: |
-                      echo "=== Building Application ==="
-                      mvn clean package -DskipTests
-                      echo "=== Build Complete! ==="
-                      ls -la target/*.jar
-
-              # Step 3: Build and Push Docker Image
-              - step:
-                  type: BuildAndPushDockerRegistry
-                  name: Build and Push to Docker Hub
-                  identifier: build_push_dockerhub
-                  spec:
-                    connectorRef: dockerhub_connector
-                    repo: <+pipeline.variables.docker_repo>
-                    tags:
-                      - <+pipeline.sequenceId>
-                      - latest
-                    dockerfile: Dockerfile
-                    optimize: true
-
-              # Step 4: Build and Push to Amazon ECR
-              - step:
-                  type: BuildAndPushECR
-                  name: Build and Push to ECR
-                  identifier: build_push_ecr
-                  spec:
-                    connectorRef: aws_connector
-                    region: us-east-1
-                    account: "123456789012"
-                    imageName: harness-course-app
-                    tags:
-                      - <+pipeline.sequenceId>
-                      - latest
-                    dockerfile: Dockerfile
-
-  variables:
-    - name: docker_repo
-      type: String
-      description: "Docker Hub repository"
-      value: "yourusername/harness-course-app"
-```
-
----
-
-### Pipeline Flow Diagram
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  PIPELINE: Build and Push                                │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │  STAGE: Build and Test                           │    │
-│  │                                                   │    │
-│  │  ┌─────────────┐                                │    │
-│  │  │ Clone Repo  │ (automatic with cloneCodebase) │    │
-│  │  └──────┬──────┘                                │    │
-│  │         ▼                                        │    │
-│  │  ┌─────────────┐                                │    │
-│  │  │ Unit Tests  │  mvn test                      │    │
-│  │  └──────┬──────┘                                │    │
-│  │         ▼                                        │    │
-│  │  ┌─────────────┐                                │    │
-│  │  │ Build App   │  mvn clean package             │    │
-│  │  └──────┬──────┘                                │    │
-│  │         ▼                                        │    │
-│  │  ┌─────────────┐                                │    │
-│  │  │ Docker Build│  Build multi-stage image        │    │
-│  │  │ & Push      │  Push to Docker Hub + ECR      │    │
-│  │  └─────────────┘                                │    │
-│  │                                                   │    │
-│  └─────────────────────────────────────────────────┘    │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-### Image Tagging Strategy
-
-```
-Tags we use:
-═══════════
-1. <+pipeline.sequenceId>  → Build number (1, 2, 3, 4...)
-2. latest                  → Always points to newest build
-
-Why both?
-  - "latest" = quick development
-  - Build number = production (know exactly which version)
-
-Production Best Practice:
-  - NEVER use "latest" in production
-  - Always use specific version: myapp:42
-  - Why? "latest" can change anytime = unpredictable
-```
-
----
-
-### Docker Buildx (Multi-Platform Builds)
-
-```
-Normal Docker Build:
-  → Creates image for YOUR machine's architecture only
-  → If you build on Mac M1 (ARM), won't work on Linux server (AMD64)
-
-Docker Buildx:
-  → Creates image for MULTIPLE architectures
-  → Same image works on ARM + AMD64
-
-┌─────────────────────────────────────────┐
-│  Buildx builds for:                      │
-│  • linux/amd64  (most servers)           │
-│  • linux/arm64  (AWS Graviton, Mac M1)   │
-└─────────────────────────────────────────┘
-```
-
----
-
-## Step-by-Step: Create Pipeline in Harness UI
-
-### Step 1: Create Pipeline
-
-1. Go to your project → **Pipelines** → **+ Create Pipeline**
-2. Name: `Build and Push`
-3. Choose: **Inline** (or Remote for Git Experience)
-4. Click **Start**
-
-### Step 2: Add CI Stage
-
-1. Click **+ Add Stage** → **Build**
-2. Stage Name: `Build and Test`
-3. Configure Codebase:
-   - Connector: `github-connector`
-   - Repository: `harness-cicd-sample-app`
-4. Click **Set Up Stage**
-
-### Step 3: Configure Infrastructure
-
-1. Under **Infrastructure**:
-   - Type: Kubernetes
-   - Connector: `k8s-connector`
-   - Namespace: `harness-builds`
-
-### Step 4: Add Steps
-
-1. Click **+ Add Step** → **Run**
-   - Name: `Run Unit Tests`
-   - Container Registry: `dockerhub-connector`
-   - Image: `maven:3.9-eclipse-temurin-17`
-   - Command: `mvn test`
-
-2. Click **+ Add Step** → **Run**
-   - Name: `Build Application`
-   - Container Registry: `dockerhub-connector`
-   - Image: `maven:3.9-eclipse-temurin-17`
-   - Command: `mvn clean package -DskipTests`
-
-3. Click **+ Add Step** → **Build and Push to Docker Registry**
-   - Name: `Push to Docker Hub`
-   - Connector: `dockerhub-connector`
-   - Repository: `yourusername/harness-course-app`
-   - Tags: `<+pipeline.sequenceId>`, `latest`
-
-### Step 5: Run the Pipeline!
-
-1. Click **Save** → Click **Run**
-2. Select branch: `main`
-3. Click **Run Pipeline**
-4. Watch it execute step by step! 🎉
-
----
-
-## ✅ Episode 4 Checklist
-
-- [ ] Understand Pipeline → Stage → Step hierarchy
-- [ ] Know Variables, Runtime Inputs, and Expressions
-- [ ] Understand Git Experience (pipeline as code)
-- [ ] Know what Templates are and why they matter
-- [ ] Created the sample Java application
-- [ ] Wrote a multi-stage Dockerfile
-- [ ] Built a complete CI pipeline
-- [ ] Pipeline pushes to Docker Hub
-- [ ] Pipeline pushes to Amazon ECR
-- [ ] Understand image tagging strategy
-
----
-
-## 📝 Key Takeaways
-
-1. **Pipeline = Recipe** with Stages (chapters) and Steps (instructions)
-2. **Multi-stage Dockerfile** = Smaller + More secure images
-3. **Never use "latest" in production** → Use build numbers
-4. **Git Experience** = Pipeline lives in Git (version controlled)
-5. **Templates** = Write once, use everywhere
 
 ---
 
