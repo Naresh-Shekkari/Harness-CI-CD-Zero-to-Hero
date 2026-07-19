@@ -23,7 +23,7 @@ pipeline:
     ci:
       codebase:
         # CHANGE THIS: Your GitHub connector name (add "account." if it's account-level)
-        connectorRef: account.Github
+        connectorRef: account.GithubOAuth
         # CHANGE THIS: Your GitHub repository name
         repoName: Harness-CI-CD-Zero-to-Hero
         build: <+input>
